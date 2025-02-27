@@ -1,0 +1,185 @@
+/* static/styles.css */
+:root {
+    --primary-color: #2ecc71;
+    --secondary-color: #27ae60;
+    --dark-green: #1e8449;
+    --light-green: #a9dfbf;
+    --background-color: #f8f9fa;
+    --card-background: #ffffff;
+    --text-color: #333333;
+    --border-radius: 8px;
+    --box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: var(--background-color);
+    color: var(--text-color);
+    line-height: 1.6;
+}
+
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+header {
+    background-color: var(--primary-color);
+    color: white;
+    padding: 20px;
+    border-radius: var(--border-radius);
+    margin-bottom: 20px;
+    text-align: center;
+    box-shadow: var(--box-shadow);
+}
+
+h1 {
+    font-size: 2rem;
+}
+
+h2 {
+    font-size: 1.5rem;
+    color: var(--dark-green);
+    margin-bottom: 15px;
+    border-bottom: 2px solid var(--light-green);
+    padding-bottom: 5px;
+}
+
+h3 {
+    font-size: 1.2rem;
+    color: var(--secondary-color);
+    margin-bottom: 10px;
+}
+
+section {
+    background-color: var(--card-background);
+    border-radius: var(--border-radius);
+    padding: 20px;
+    margin-bottom: 20px;
+    box-shadow: var(--box-shadow);
+}
+
+/* Video Section */
+.video-container {
+    position: relative;
+    width: 100%;
+    height: 300px;
+    border-radius: var(--border-radius);
+    overflow: hidden;
+    background-color: #000;
+    margin-bottom: 20px;
+}
+
+#webcam {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.video-overlay {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background-color: rgba(0, 0, 0, 0.6);
+    color: white;
+    padding: 5px 10px;
+    border-radius: 4px;
+    font-size: 0.8rem;
+}
+
+/* Sensors Grid */
+.sensors-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 20px;
+}
+
+.sensor-card {
+    background-color: var(--card-background);
+    border-radius: var(--border-radius);
+    padding: 15px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    text-align: center;
+    transition: transform 0.3s ease;
+}
+
+.sensor-card:hover {
+    transform: translateY(-5px);
+}
+
+.gauge-container, .water-level-container {
+    height: 150px;
+    position: relative;
+    margin: 0 auto;
+}
+
+.sensor-value {
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: var(--dark-green);
+    margin-top: 10px;
+}
+
+/* History Section */
+.time-controls {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 15px;
+    flex-wrap: wrap;
+}
+
+.time-button {
+    background-color: var(--light-green);
+    border: none;
+    color: var(--text-color);
+    padding: 8px 16px;
+    margin: 0 5px 5px 0;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: background-color 0.3s;
+}
+
+.time-button:hover {
+    background-color: var(--secondary-color);
+    color: white;
+}
+
+.time-button.active {
+    background-color: var(--primary-color);
+    color: white;
+}
+
+.chart-container {
+    height: 400px;
+}
+
+/* Footer */
+footer {
+    text-align: center;
+    margin-top: 20px;
+    padding: 10px;
+    color: var(--text-color);
+    font-size: 0.9rem;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .sensors-grid {
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    }
+    
+    .video-container {
+        height: 200px;
+    }
+    
+    .chart-container {
+        height: 300px;
+    }
+}

@@ -1,0 +1,143 @@
+<!-- templates/index.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hydroponics Monitoring System</title>
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Chart.js for data visualization -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <!-- D3.js for advanced visualizations -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+    <!-- ApexCharts for better visualizations -->
+    <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1><i class="fas fa-seedling"></i> Smart Hydroponics Monitor</h1>
+        </header>
+
+        <main>
+            <section class="video-section">
+                <h2>Live Plant Monitoring</h2>
+                <div class="video-container">
+                    <video id="webcam" autoplay playsinline></video>
+                    <div class="video-overlay">
+                        <p>Live Feed</p>
+                    </div>
+                </div>
+            </section>
+
+            <section class="sensors-section">
+                <h2>Current Sensor Readings</h2>
+                <div class="sensors-grid">
+                    <!-- Water Level -->
+                    <div class="sensor-card">
+                        <h3><i class="fas fa-water"></i> Water Level</h3>
+                        <div class="water-level-container">
+                            <div id="water-level-chart"></div>
+                            <div class="sensor-value" id="water-level-value">0%</div>
+                        </div>
+                    </div>
+
+                    <!-- pH Level -->
+                    <div class="sensor-card">
+                        <h3><i class="fas fa-flask"></i> pH Level</h3>
+                        <div class="ph-container">
+                            <div class="ph-bar-container">
+                                <div class="ph-bar-background"></div>
+                                <div class="ph-bar-fill" id="ph-bar"></div>
+                                <div class="ph-scale">
+                                    <span>0</span>
+                                    <span>7</span>
+                                    <span>14</span>
+                                </div>
+                            </div>
+                            <div class="sensor-value" id="ph-value">0</div>
+                        </div>
+                    </div>
+
+                    <!-- Temperature -->
+                    <div class="sensor-card">
+                        <h3><i class="fas fa-temperature-high"></i> Temperature</h3>
+                        <div class="simple-reading">
+                            <div class="reading-icon"><i class="fas fa-thermometer-half"></i></div>
+                            <div class="sensor-value" id="temperature-value">0°C</div>
+                            <div class="reading-status" id="temperature-status">Normal</div>
+                        </div>
+                    </div>
+
+                    <!-- Humidity -->
+                    <div class="sensor-card">
+                        <h3><i class="fas fa-tint"></i> Humidity</h3>
+                        <div class="simple-reading">
+                            <div class="reading-icon"><i class="fas fa-droplet"></i></div>
+                            <div class="sensor-value" id="humidity-value">0%</div>
+                            <div class="reading-status" id="humidity-status">Normal</div>
+                        </div>
+                    </div>
+
+                    <!-- TDS Level -->
+                    <div class="sensor-card">
+                        <h3><i class="fas fa-atom"></i> TDS Level</h3>
+                        <div class="simple-reading">
+                            <div class="reading-icon"><i class="fas fa-vial"></i></div>
+                            <div class="sensor-value" id="tds-value">0 ppm</div>
+                            <div class="reading-status" id="tds-status">Normal</div>
+                        </div>
+                    </div>
+
+                    <!-- Dissolved Oxygen -->
+                    <div class="sensor-card">
+                        <h3><i class="fas fa-wind"></i> Dissolved Oxygen</h3>
+                        <div class="simple-reading">
+                            <div class="reading-icon"><i class="fas fa-wind"></i></div>
+                            <div class="sensor-value" id="oxygen-value">0 mg/L</div>
+                            <div class="reading-status" id="oxygen-status">Normal</div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="history-section">
+                <h2>Sensor History</h2>
+                <div class="time-controls">
+                    <div class="preset-controls">
+                        <button class="time-button active" data-hours="6">6 Hours</button>
+                        <button class="time-button" data-hours="12">12 Hours</button>
+                        <button class="time-button" data-hours="24">24 Hours</button>
+                        <button class="time-button" data-hours="72">3 Days</button>
+                        <button class="time-button" data-hours="168">1 Week</button>
+                    </div>
+                    
+                    <!-- Commented out custom date range selector
+                    <div class="custom-range">
+                        <label for="start-date">From:</label>
+                        <input type="datetime-local" id="start-date">
+                        <label for="end-date">To:</label>
+                        <input type="datetime-local" id="end-date">
+                        <button id="apply-custom-range">Apply</button>
+                    </div>
+                    -->
+                </div>
+                
+                <div class="chart-container">
+                    <canvas id="history-chart"></canvas>
+                </div>
+            </section>
+        </main>
+
+        <footer>
+            <p>Smart Hydroponics Monitoring System - Sophmore project 2025</p>
+        </footer>
+    </div>
+
+    <!-- Custom Scripts -->
+    <script src="/static/dashboard.js"></script>
+</body>
+</html>
