@@ -1,5 +1,6 @@
 # main.py
 from fastapi import FastAPI, Request, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -10,6 +11,18 @@ import datetime
 import uvicorn
 import os
 from typing import List
+
+origins = [
+    "*",  # Allow all origins to access the API
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,  # Allow all origins (or specify a list of allowed origins)
+    allow_credentials=True,
+    allow_methods=["*"],  # Allow all methods (GET, POST, PUT, DELETE, etc.)
+    allow_headers=["*"],  # Allow all headers
+)
 
 # Create the FastAPI app
 app = FastAPI(title="Hydroponics Monitor System")
