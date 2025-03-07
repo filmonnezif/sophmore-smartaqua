@@ -16,6 +16,10 @@ origins = [
     "*",  # Allow all origins to access the API
 ]
 
+
+# Create the FastAPI app
+app = FastAPI(title="Hydroponics Monitor System")
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,  # Allow all origins (or specify a list of allowed origins)
@@ -23,9 +27,6 @@ app.add_middleware(
     allow_methods=["*"],  # Allow all methods (GET, POST, PUT, DELETE, etc.)
     allow_headers=["*"],  # Allow all headers
 )
-
-# Create the FastAPI app
-app = FastAPI(title="Hydroponics Monitor System")
 
 # Create the database directory if it doesn't exist
 if not os.path.exists('database'):
