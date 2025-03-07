@@ -67,16 +67,6 @@ class SensorReading(BaseModel):
     tds_level: float
     dissolved_oxygen: float
 
-# Simulate sensor data
-def generate_sensor_data():
-    return {
-        "water_level": round(random.uniform(20, 95), 1),
-        "ph_level": round(random.uniform(5.5, 7.5), 1),
-        "temperature": round(random.uniform(18, 30), 1),
-        "humidity": round(random.uniform(40, 90), 1),
-        "tds_level": round(random.uniform(500, 1500), 0),
-        "dissolved_oxygen": round(random.uniform(4, 10), 1)
-    }
 
 # GET route for the main page
 @app.get("/", response_class=HTMLResponse)
@@ -85,29 +75,29 @@ async def root(request: Request):
 
 # GET route for current sensor data
 @app.get("/api/sensors/current", response_model=SensorReading)
-async def get_current_sensor_data():
-    data = generate_sensor_data()
-    
-    # Save the data to the database
+async def get_latest_sensor_data():
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute('''
-    INSERT INTO sensor_readings 
-    (timestamp, water_level, ph_level, temperature, humidity, tds_level, dissolved_oxygen)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
-    ''', (
-        datetime.datetime.now().isoformat(),
-        data["water_level"],
-        data["ph_level"],
-        data["temperature"],
-        data["humidity"],
-        data["tds_level"],
-        data["dissolved_oxygen"]
-    ))
-    conn.commit()
+    SELECT * FROM sensor_readings
+    ORDER BY timestamp DESC
+    LIMIT 1
+    ''')
+    row = cursor.fetchone()
     conn.close()
-    
-    return data
+
+    if not row:
+        raise HTTPException(status_code=404, detail="No sensor data found")
+
+    return {
+        "timestamp": row["timestamp"],
+        "water_level": row["water_level"],
+        "ph_level": row["ph_level"],
+        "temperature": row["temperature"],
+        "humidity": row["humidity"],
+        "tds_level": row["tds_level"],
+        "dissolved_oxygen": row["dissolved_oxygen"]
+    }
 
 # GET route for historical sensor data
 @app.get("/api/sensors/history")
@@ -188,6 +178,7 @@ async def add_manual_sensor_data(reading: ManualSensorReading):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error adding data: {str(e)}")
 
+
 # Add batch simulation endpoint
 @app.post("/api/sensors/simulate-batch")
 async def simulate_batch_data(count: int = 100, interval_minutes: int = 15):
@@ -266,3 +257,5 @@ async def get_sensor_custom_range(start: str, end: str):
         raise HTTPException(status_code=400, detail=f"Invalid date format: {str(e)}")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error fetching data: {str(e)}")
+
+

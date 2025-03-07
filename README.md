@@ -2,7 +2,7 @@
 # Smart Hydroponics Monitoring System
 
 ## Overview
-This project is developed as part of a sophomore-level engineering initiative, focusing on creating an intelligent hydroponics monitoring system that combines advanced sensor technology with artificial intelligence and image processing capabilities.
+This project is developed as part of a sophomore engineering project, focusing on creating an intelligent hydroponics monitoring system that combines advanced sensor technology with artificial intelligence and image processing capabilities.
 
 ## Features
 - Real-time monitoring of hydroponics parameters
