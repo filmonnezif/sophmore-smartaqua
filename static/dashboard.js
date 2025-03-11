@@ -4,7 +4,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initialize all visualizations
     initWaterLevelChart();
     initPHBar();
-    initWebcam();    
+    //initWebcam();    
     // Fetch initial data
     fetchCurrentData();
     fetchHistoricalData(24); // Default to 24 hours
