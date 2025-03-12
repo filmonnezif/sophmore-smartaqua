@@ -1,6 +1,4 @@
-# main.py
 from fastapi import FastAPI, Request, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -11,30 +9,11 @@ import datetime
 import uvicorn
 import os
 from typing import List
-from fastapi.responses import StreamingResponse
-import cv2
-import io
-import picamera
-from picamera import PiCamera
-from picamera.array import PiRGBArray
-import threading
-import time
-
-origins = [
-    "*",  # Allow all origins to access the API
-]
+from datetime import datetime, timedelta
 
 
 # Create the FastAPI app
 app = FastAPI(title="Hydroponics Monitor System")
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=origins,  # Allow all origins (or specify a list of allowed origins)
-    allow_credentials=True,
-    allow_methods=["*"],  # Allow all methods (GET, POST, PUT, DELETE, etc.)
-    allow_headers=["*"],  # Allow all headers
-)
 
 # Create the database directory if it doesn't exist
 if not os.path.exists('database'):
@@ -151,10 +130,6 @@ async def get_sensor_history(hours: int = 24):
     
     return history
 
-    # Add these imports at the top
-from datetime import datetime, timedelta
-
-# Add this new data model class
 class ManualSensorReading(BaseModel):
     timestamp: str  # ISO format timestamp
     water_level: float
@@ -276,63 +251,7 @@ async def get_sensor_custom_range(start: str, end: str):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error fetching data: {str(e)}")
 
-camera = None
-output_frame = None
-lock = threading.Lock()
 
-def initialize_camera():
-    global camera
-    try:
-        camera = PiCamera()
-        camera.resolution = (640, 480)
-        camera.framerate = 20
-        time.sleep(2)  # Allow camera to warm up
-        return True
-    except Exception as e:
-        print(f"Error initializing camera: {str(e)}")
-        return False
-
-def generate_frames():
-    global camera, output_frame, lock
-    
-    if camera is None:
-        if not initialize_camera():
-            return
-    
-    raw_capture = PiRGBArray(camera, size=(640, 480))
-    
-    # Continuously capture frames
-    for frame in camera.capture_continuous(raw_capture, format="bgr", use_video_port=True):
-        image = frame.array
-        
-        # You can add processing here (facial recognition, motion detection, etc.)
-        
-        # Encode the frame as JPEG
-        ret, jpeg = cv2.imencode('.jpg', image)
-        
-        with lock:
-            output_frame = jpeg.tobytes()
-        
-        # Clear the stream for the next frame
-        raw_capture.truncate(0)
-        
-        # Convert to bytes for streaming
-        yield (b'--frame\r\n'
-               b'Content-Type: image/jpeg\r\n\r\n' + output_frame + b'\r\n')
-
-@app.get("/video_feed")
-async def video_feed():
-    """Stream the Pi camera feed."""
-    return StreamingResponse(generate_frames(), 
-                            media_type="multipart/x-mixed-replace; boundary=frame")
-
-# Make sure to initialize the camera when the app starts
-@app.on_event("startup")
-async def startup_event():
-    threading.Thread(target=initialize_camera, daemon=True).start()
-
-@app.on_event("shutdown")
-async def shutdown_event():
-    global camera
-    if camera:
-        camera.close()
+# Run the server
+if __name__ == "__main__":
+    uvicorn.run(app, host="0.0.0.0", port=8000)
