@@ -4,12 +4,10 @@
 #include <DHT.h>  // Library for DHT sensor
 #include <time.h>  // For NTP time
 
-// Replace with your Wi-Fi credentials
-const char* ssid = "F306";
-const char* password = "dubai@123";
+const char* ssid = "****";
+const char* password = "****";
 
-// Replace with your FastAPI server's IP address or URL
-const String serverUrl = "http://192.168.1.150:8000/api/sensors/manual";  // Adjust to your server's address
+const String serverUrl = "http://192.168.1.150:8000/api/sensors/manual";  // Adjust the server's address
 
 // DHT Sensor setup
 #define DHTPIN 4  // Digital pin connected to the DHT sensor
@@ -18,7 +16,7 @@ DHT dht(DHTPIN, DHTTYPE);
 
 // NTP Server settings
 const char* ntpServer = "pool.ntp.org";
-const long gmtOffset_sec = 0;       // Change this to your timezone offset in seconds (e.g., GMT+0)
+const long gmtOffset_sec = 0;      
 const int daylightOffset_sec = 0;   // Change for Daylight Saving Time offset
 
 // Function to connect to Wi-Fi
