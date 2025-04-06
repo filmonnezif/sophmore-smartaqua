@@ -1,140 +1,127 @@
-#include <WiFi.h>  // Use <ESP8266WiFi.h> if you're using ESP8266
-#include <HTTPClient.h>  // Library for making HTTP requests
-#include <ArduinoJson.h>  // For creating JSON data to send
-#include <DHT.h>  // Library for DHT sensor
-#include <time.h>  // For NTP time
+#include <WiFi.h>
+#include <HTTPClient.h>
+#include <ArduinoJson.h>
+#include <DHT.h>
+#include <time.h>
 
-const char* ssid = "****";
-const char* password = "****";
+// Wi-Fi Credentials
+const char* ssid = "F306";
+const char* password = "dubai@123";
 
-const String serverUrl = "http://192.168.1.150:8000/api/sensors/manual";  // Adjust the server's address
+// NTP Configuration
+const char* ntpServer = "pool.ntp.org";
+const long  gmtOffset_sec = 14400;
+const int   daylightOffset_sec = 0;
 
-// DHT Sensor setup
-#define DHTPIN 4  // Digital pin connected to the DHT sensor
-#define DHTTYPE DHT22  // DHT 22 (AM2302) - Change to DHT11 if you're using that sensor
+// Sensor Pins
+#define DHTPIN 4
+#define DHTTYPE DHT22
+#define ULTRASONIC_TRIG_PIN 5
+#define ULTRASONIC_ECHO_PIN 18
+#define TDS_PIN 34
+#define DO_PIN 35
+#define LIGHT_SENSOR_PIN 32
+#define PH_SENSOR_PIN 33
+
 DHT dht(DHTPIN, DHTTYPE);
 
-// NTP Server settings
-const char* ntpServer = "pool.ntp.org";
-const long gmtOffset_sec = 0;      
-const int daylightOffset_sec = 0;   // Change for Daylight Saving Time offset
-
-// Function to connect to Wi-Fi
 void connectToWiFi() {
-  Serial.begin(115200);
   WiFi.begin(ssid, password);
-  
+  Serial.print("Connecting to Wi-Fi");
   while (WiFi.status() != WL_CONNECTED) {
     delay(1000);
-    Serial.println("Connecting to Wi-Fi...");
+    Serial.print(".");
   }
-  
-  Serial.println("Connected to Wi-Fi");
-  
-  // Configure and get time from NTP server
-  configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
-  Serial.println("NTP time configured");
+  Serial.println("\nConnected to Wi-Fi");
 }
 
-// Function to get the current time as ISO 8601 string
-String getFormattedTime() {
+String getCurrentTime() {
   struct tm timeinfo;
-  char timeStringBuff[30];
-  
-  if(!getLocalTime(&timeinfo)) {
-    Serial.println("Failed to obtain time");
-    return "2025-03-07T00:00:00"; // Fallback timestamp
+  if (!getLocalTime(&timeinfo)) {
+    return "2025-03-07T00:00:00"; // Fallback time
   }
-  
-  // Format: YYYY-MM-DDThh:mm:ss
-  strftime(timeStringBuff, sizeof(timeStringBuff), "%Y-%m-%dT%H:%M:%S", &timeinfo);
-  return String(timeStringBuff);
+  char timeString[25];
+  strftime(timeString, sizeof(timeString), "%Y-%m-%dT%H:%M:%S", &timeinfo);
+  return String(timeString);
 }
 
-// Function to read temperature and humidity from DHT sensor
+float analogToVoltage(int analogValue) {
+  return analogValue * (3.3 / 4095.0); // Convert ADC reading to voltage for ESP32
+}
+
 void readDHTSensor(float &temperature, float &humidity) {
-  // Reading temperature or humidity takes about 250 milliseconds
-  humidity = dht.readHumidity();
-  // Read temperature as Celsius (the default)
+  delay(2000); // Required delay for DHT sensor stability
   temperature = dht.readTemperature();
-
-  // Check if any reads failed and exit early (to try again)
-  if (isnan(humidity) || isnan(temperature)) {
+  humidity = dht.readHumidity();
+  if (isnan(temperature) || isnan(humidity)) {
     Serial.println("Failed to read from DHT sensor!");
-    temperature = 0.0;
-    humidity = 0.0;
-    return;
+    temperature = humidity = -1; // Error values
   }
-
-  Serial.print("Temperature: ");
-  Serial.print(temperature);
-  Serial.print(" °C, Humidity: ");
-  Serial.print(humidity);
-  Serial.println(" %");
 }
 
-// Function to send data to FastAPI server
+float readWaterLevel() {
+  digitalWrite(ULTRASONIC_TRIG_PIN, LOW);
+  delayMicroseconds(2);
+  digitalWrite(ULTRASONIC_TRIG_PIN, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(ULTRASONIC_TRIG_PIN, LOW);
+  long duration = pulseIn(ULTRASONIC_ECHO_PIN, HIGH, 30000); // Timeout to prevent hanging
+  if (duration == 0) {
+    Serial.println("Ultrasonic sensor timeout");
+    return -1;
+  }
+  return duration * 0.034 / 2;
+}
+
 void sendData() {
-  if (WiFi.status() != WL_CONNECTED) {
-    Serial.println("WiFi not connected. Reconnecting...");
-    WiFi.begin(ssid, password);
-    delay(5000);
-    return;
-  }
+  if (WiFi.status() == WL_CONNECTED) {
+    HTTPClient http;
+    http.begin("http://192.168.1.150:8000/api/sensors/manual");
+    http.addHeader("Content-Type", "application/json");
 
-  float temperature, humidity;
-  readDHTSensor(temperature, humidity);
+    float temperature, humidity, water_level, tds_level, dissolved_oxygen, light_level, ph_level;
+    readDHTSensor(temperature, humidity);
+    water_level = readWaterLevel();
+    tds_level = analogToVoltage(analogRead(TDS_PIN));
+    dissolved_oxygen = analogToVoltage(analogRead(DO_PIN));
+    light_level = analogToVoltage(analogRead(LIGHT_SENSOR_PIN));
+    ph_level = analogToVoltage(analogRead(PH_SENSOR_PIN));
 
-  HTTPClient http;
+    StaticJsonDocument<256> jsonDoc;
+    jsonDoc["timestamp"] = getCurrentTime();
+    jsonDoc["temperature"] = temperature;
+    jsonDoc["humidity"] = humidity;
+    jsonDoc["water_level"] = water_level;
+    jsonDoc["tds_level"] = tds_level;
+    jsonDoc["dissolved_oxygen"] = dissolved_oxygen;
+    jsonDoc["light_level"] = light_level;
+    jsonDoc["ph_level"] = ph_level;
 
-  // Start HTTP connection to FastAPI server
-  http.begin(serverUrl);
-
-  // Set content-type header to application/json
-  http.addHeader("Content-Type", "application/json");
-
-  // Create JSON object to hold sensor data
-  DynamicJsonDocument doc(1024);
-  
-  // Get current time from NTP
-  doc["timestamp"] = getFormattedTime();
-  
-  // Use actual temperature and humidity values from the sensor
-  doc["temperature"] = temperature;
-  doc["humidity"] = humidity;
-  
-  // Keep the other values fixed as in your original code
-  doc["water_level"] = 69;
-  doc["ph_level"] = 6.9;
-  doc["tds_level"] = 69;
-  doc["dissolved_oxygen"] = 69;
-
-  // Serialize the JSON object into a string
-  String jsonData;
-  serializeJson(doc, jsonData);
-
-  // Send POST request with JSON data
-  int httpResponseCode = http.POST(jsonData);
-
-  // Check response code
-  if (httpResponseCode == 200) {
-    Serial.println("✅ Data sent successfully!");
-    Serial.println("Current timestamp: " + getFormattedTime());
+    String jsonString;
+    serializeJson(jsonDoc, jsonString);
+    int httpResponseCode = http.POST(jsonString);
+    if (httpResponseCode > 0) {
+      Serial.println("✅ Data sent successfully!");
+    } else {
+      Serial.print("❌ Error sending data: ");
+      Serial.println(httpResponseCode);
+    }
+    http.end();
   } else {
-    Serial.printf("❌ Error sending data: %d\n", httpResponseCode);
+    Serial.println("❌ No WiFi connection. Skipping data transmission.");
   }
-
-  // End HTTP connection
-  http.end();
 }
 
 void setup() {
   Serial.begin(115200);
-  dht.begin();      // Initialize DHT sensor
-  connectToWiFi();  // Connect to Wi-Fi and setup NTP
+  pinMode(ULTRASONIC_TRIG_PIN, OUTPUT);
+  pinMode(ULTRASONIC_ECHO_PIN, INPUT);
+  dht.begin();
+  connectToWiFi();
+  configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
 }
 
 void loop() {
-  sendData();      // Read sensor data and send to FastAPI
-  delay(5000);     // Wait 5 seconds before sending the next data
+  sendData();
+  delay(5000);
 }
