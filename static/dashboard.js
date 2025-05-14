@@ -4,13 +4,15 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initialize all visualizations
     initWaterLevelChart();
     initPHBar();
-    //initWebcam();    
+    
     // Fetch initial data
-    fetchCurrentData();
-    fetchHistoricalData(24); // Default to 24 hours
+    //fetchCurrentData();
+    //fetchHistoricalData(24); // Default to 24 hours
 
     // Set up refresh interval (every 30 seconds)
-    setInterval(fetchCurrentData, 30000);
+    //setInterval(fetchCurrentData, 30000);
+    initWebcam();  
+    console.log("Webcam initialized");
     
     // Set up time control buttons
     document.querySelectorAll('.time-button').forEach(button => {
@@ -35,28 +37,50 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 function initWebcam() {
-    const video = document.getElementById('webcam');
-    
-    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-        navigator.mediaDevices.getUserMedia({ video: true })
-            .then(function(stream) {
-                video.srcObject = stream;
-            })
-            .catch(function(error) {
-                console.error("Webcam access error:", error);
-                // Display error message on video container
-                const videoContainer = document.querySelector('.video-container');
-                videoContainer.innerHTML = `
-                    <div class="video-error">
-                        <i class="fas fa-exclamation-triangle"></i>
-                        <p>Camera not available</p>
-                        <small>Please check camera permissions</small>
-                    </div>
-                `;
-            });
-    } else {
-        console.error("getUserMedia is not supported in this browser");
-    }
+    const container = document.querySelector('.video-container');
+    container.innerHTML = '';
+  
+    const canvas = document.createElement('canvas');
+    canvas.id = 'webcam-canvas';
+    canvas.style.width = '100%';
+    container.appendChild(canvas);
+    const ctx = canvas.getContext('2d');
+  
+    const overlay = document.createElement('div');
+    overlay.className = 'video-overlay';
+    overlay.innerHTML = '<p>Server Feed (WS)</p>';
+    container.appendChild(overlay);
+  
+    const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+    const wsUrl = `${proto}://${location.host}/ws/webcam`;
+    console.log('[WS] connecting to', wsUrl);
+  
+    const ws = new WebSocket(wsUrl);
+    ws.binaryType = 'arraybuffer';
+  
+    ws.onopen = () => console.log('[WS] connection opened');
+    ws.onerror = err => console.error('[WS] error:', err);
+    ws.onclose = ev => console.warn('[WS] closed:', ev);
+  
+    ws.onmessage = async ({ data }) => {
+      const blob = new Blob([data], { type: 'image/jpeg' });
+      const bitmap = await createImageBitmap(blob);
+      canvas.width = bitmap.width;
+      canvas.height = bitmap.height;
+      ctx.drawImage(bitmap, 0, 0);
+    };
+  }
+
+// Helper function to display video errors
+function handleVideoError(container, message) {
+    console.error("Video error:", message);
+    container.innerHTML = `
+        <div class="video-error">
+            <i class="fas fa-exclamation-triangle"></i>
+            <p>${message}</p>
+            <small>Please check server camera connection</small>
+        </div>
+    `;
 }
 
 async function fetchCustomRangeData() {

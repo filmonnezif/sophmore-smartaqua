@@ -1,5 +1,5 @@
 from fastapi import FastAPI, Request, HTTPException
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
@@ -8,9 +8,23 @@ import random
 import datetime
 import uvicorn
 import os
+import cv2
 from typing import List
 from datetime import datetime, timedelta
+import asyncio
+from fastapi import WebSocket, WebSocketDisconnect
 
+
+def generate_sensor_data():
+    """Generate random sensor readings for testing"""
+    return {
+        "water_level": round(random.uniform(40, 95), 1),
+        "ph_level": round(random.uniform(5.5, 8.5), 1),
+        "temperature": round(random.uniform(18, 28), 1),
+        "humidity": round(random.uniform(50, 85), 1),
+        "tds_level": round(random.uniform(600, 1500), 0),
+        "dissolved_oxygen": round(random.uniform(5, 8), 1)
+    }
 
 # Create the FastAPI app
 app = FastAPI(title="Hydroponics Monitor System")
@@ -58,7 +72,76 @@ def init_db():
 
 # Call the function to initialize the database
 init_db()
+def ensure_no_camera_image():
+    """Create a placeholder image for when the camera is not available"""
+    no_camera_path = 'static/no_camera.jpg'
+    if not os.path.exists(no_camera_path):
+        try:
+            # Create a black image with text
+            img = np.zeros((480, 640, 3), dtype=np.uint8)
+            cv2.putText(img, "No Camera Available", (120, 240),
+                        cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
+            cv2.imwrite(no_camera_path, img)
+            print("Created placeholder camera image")
+        except Exception as e:
+            print(f"Error creating placeholder image: {e}")
 
+
+def get_camera():
+    """
+    Try camera indexes 0 then 1.  If neither opens, return None.
+    """
+    for idx in (0, 1):
+        cap = cv2.VideoCapture(idx)
+        if cap.isOpened():
+            cap.set(cv2.CAP_PROP_FRAME_WIDTH,  640)
+            cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+            return cap
+        cap.release()
+    return None
+
+def generate_frames():
+    """
+    Generate MJPEG frames from the camera, or
+    fall back to a placeholder if no camera is available.
+    """
+    camera = get_camera()
+    if camera is None:
+        ensure_no_camera_image()
+        placeholder = open('static/no_camera.jpg', 'rb').read()
+        while True:
+            yield (
+              b'--frame\r\n'
+              b'Content-Type: image/jpeg\r\n\r\n' +
+              placeholder +
+              b'\r\n'
+            )
+    try:
+        while True:
+            success, frame = camera.read()
+            if not success:
+                break
+            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            cv2.putText(frame, timestamp, (10, 30),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.8,
+                        (255, 255, 255), 2)
+            ret, buf = cv2.imencode('.jpg', frame)
+            yield (
+              b'--frame\r\n'
+              b'Content-Type: image/jpeg\r\n\r\n' +
+              buf.tobytes() +
+              b'\r\n'
+            )
+    finally:
+        camera.release()
+        
+@app.get("/api/webcam/stream")
+async def video_stream():
+    """Endpoint that returns a streaming response of webcam frames"""
+    return StreamingResponse(
+        generate_frames(),
+        media_type="multipart/x-mixed-replace; boundary=frame"
+    )    
 # Define data models
 class SensorReading(BaseModel):
     water_level: float
@@ -251,7 +334,42 @@ async def get_sensor_custom_range(start: str, end: str):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error fetching data: {str(e)}")
 
+@app.websocket("/ws/webcam")
+async def websocket_webcam(websocket: WebSocket):
+    print("🟢 [WS] client connecting…")
+    await websocket.accept()
+    camera = get_camera()
+    if not camera:
+        print("⚠️ [WS] no camera, streaming placeholder")
+        ensure_no_camera_image()
+        placeholder = open('static/no_camera.jpg', 'rb').read()
+        try:
+            while True:
+                await websocket.send_bytes(placeholder)
+                await asyncio.sleep(0.1)
+        except WebSocketDisconnect:
+            print("🔴 [WS] placeholder client disconnected")
+        return
+
+    try:
+        print("🟢 [WS] streaming actual camera frames")
+        while True:
+            ok, frame = camera.read()
+            if not ok:
+                break
+            # draw timestamp…
+            ret, buf = cv2.imencode('.jpg', frame)
+            if not ret:
+                continue
+            await websocket.send_bytes(buf.tobytes())
+            await asyncio.sleep(0.03)
+    except WebSocketDisconnect:
+        print("🔴 [WS] client disconnected")
+    finally:
+        camera.release()
+        print("🔴 [WS] camera released")
 
 # Run the server
 if __name__ == "__main__":
+    ensure_no_camera_image()
     uvicorn.run(app, host="0.0.0.0", port=8000)
