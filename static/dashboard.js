@@ -62,7 +62,6 @@ function initWebcam() {
         });
     } else {
       console.error('getUserMedia not supported');
-      handleVideoError(container, 'Browser does not support webcam');
     }
   }
   
