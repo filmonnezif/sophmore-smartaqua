@@ -46,25 +46,58 @@ function initWebcam() {
     video.id = 'client-webcam';
     video.autoplay = true;
     video.playsInline = true;
+    video.muted = true; // Important for autoplay to work in some browsers
     video.style.width = '100%';
     video.style.height = 'auto';
     container.appendChild(video);
   
-    // Request camera access
+    // Request camera access with constraints that work across browsers
     if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-      navigator.mediaDevices.getUserMedia({ video: true, audio: false })
+      // More compatible constraints
+      const constraints = {
+        video: {
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+          facingMode: "user"
+        },
+        audio: false
+      };
+      
+      navigator.mediaDevices.getUserMedia(constraints)
         .then(stream => {
+          // This is the key fix for Firefox and Edge
           video.srcObject = stream;
+          
+          // Ensure video plays after loading metadata
+          video.onloadedmetadata = function() {
+            video.play().catch(e => {
+              console.error('Error playing video:', e);
+              handleVideoError(container, 'Browser prevented video autoplay');
+            });
+          };
         })
         .catch(err => {
           console.error('Error accessing webcam:', err);
-          handleVideoError(container, 'Unable to access webcam');
+          handleVideoError(container, 'Unable to access webcam. Please check camera permissions.');
         });
     } else {
-      console.error('getUserMedia not supported');
+      console.error('getUserMedia not supported in this browser');
+      handleVideoError(container, 'Your browser does not support webcam access');
     }
-  }
-  
+}
+
+// Helper function to display video errors
+function handleVideoError(container, message) {
+    console.error("Video error:", message);
+    container.innerHTML = `
+        <div class="video-error">
+            <i class="fas fa-exclamation-triangle"></i>
+            <p>${message}</p>
+            <small>Please check browser camera permissions</small>
+        </div>
+    `;
+}
+
 
 // Helper function to display video errors
 // function handleVideoError(container, message) {
