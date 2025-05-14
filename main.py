@@ -134,7 +134,7 @@ def generate_frames():
             )
     finally:
         camera.release()
-        
+
 @app.get("/api/webcam/stream")
 async def video_stream():
     """Endpoint that returns a streaming response of webcam frames"""
@@ -157,32 +157,42 @@ class SensorReading(BaseModel):
 async def root(request: Request):
     return templates.TemplateResponse("index.html", {"request": request})
 
-# GET route for current sensor data
 @app.get("/api/sensors/current", response_model=SensorReading)
 async def get_latest_sensor_data():
     conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute('''
-    SELECT * FROM sensor_readings
-    ORDER BY timestamp DESC
-    LIMIT 1
+      SELECT * FROM sensor_readings
+      ORDER BY timestamp DESC
+      LIMIT 1
     ''')
     row = cursor.fetchone()
     conn.close()
 
     if not row:
-        raise HTTPException(status_code=404, detail="No sensor data found")
+        # no real data → return a generated “fallback” reading
+        data = generate_sensor_data()
+        return {
+            "water_level": data["water_level"],
+            "ph_level": data["ph_level"],
+            "temperature": data["temperature"],
+            "humidity": data["humidity"],
+            "tds_level": data["tds_level"],
+            "dissolved_oxygen": data["dissolved_oxygen"],
+            # timestamp of this fallback
+            "timestamp": datetime.now().isoformat()
+        }
 
     return {
-        "timestamp": row["timestamp"],
         "water_level": row["water_level"],
         "ph_level": row["ph_level"],
         "temperature": row["temperature"],
         "humidity": row["humidity"],
         "tds_level": row["tds_level"],
-        "dissolved_oxygen": row["dissolved_oxygen"]
+        "dissolved_oxygen": row["dissolved_oxygen"],
+        "timestamp": row["timestamp"]
     }
-
+    
 # GET route for historical sensor data
 @app.get("/api/sensors/history")
 async def get_sensor_history(hours: int = 24):

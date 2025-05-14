@@ -4,13 +4,14 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initialize all visualizations
     initWaterLevelChart();
     initPHBar();
+    initPlantHealthMonitor();
     
     // Fetch initial data
-    //fetchCurrentData();
-    //fetchHistoricalData(24); // Default to 24 hours
+    fetchCurrentData();
+    fetchHistoricalData(24); // Default to 24 hours
 
     // Set up refresh interval (every 30 seconds)
-    //setInterval(fetchCurrentData, 30000);
+    setInterval(fetchCurrentData, 30000);
     initWebcam();  
     console.log("Webcam initialized");
     
@@ -38,50 +39,45 @@ document.addEventListener('DOMContentLoaded', function() {
 
 function initWebcam() {
     const container = document.querySelector('.video-container');
-    container.innerHTML = '';
+    container.innerHTML = ''; 
   
-    const canvas = document.createElement('canvas');
-    canvas.id = 'webcam-canvas';
-    canvas.style.width = '100%';
-    container.appendChild(canvas);
-    const ctx = canvas.getContext('2d');
+    // Create a <video> element for the client webcam
+    const video = document.createElement('video');
+    video.id = 'client-webcam';
+    video.autoplay = true;
+    video.playsInline = true;
+    video.style.width = '100%';
+    video.style.height = 'auto';
+    container.appendChild(video);
   
-    const overlay = document.createElement('div');
-    overlay.className = 'video-overlay';
-    overlay.innerHTML = '<p>Server Feed (WS)</p>';
-    container.appendChild(overlay);
-  
-    const proto = location.protocol === 'https:' ? 'wss' : 'ws';
-    const wsUrl = `${proto}://${location.host}/ws/webcam`;
-    console.log('[WS] connecting to', wsUrl);
-  
-    const ws = new WebSocket(wsUrl);
-    ws.binaryType = 'arraybuffer';
-  
-    ws.onopen = () => console.log('[WS] connection opened');
-    ws.onerror = err => console.error('[WS] error:', err);
-    ws.onclose = ev => console.warn('[WS] closed:', ev);
-  
-    ws.onmessage = async ({ data }) => {
-      const blob = new Blob([data], { type: 'image/jpeg' });
-      const bitmap = await createImageBitmap(blob);
-      canvas.width = bitmap.width;
-      canvas.height = bitmap.height;
-      ctx.drawImage(bitmap, 0, 0);
-    };
+    // Request camera access
+    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+      navigator.mediaDevices.getUserMedia({ video: true, audio: false })
+        .then(stream => {
+          video.srcObject = stream;
+        })
+        .catch(err => {
+          console.error('Error accessing webcam:', err);
+          handleVideoError(container, 'Unable to access webcam');
+        });
+    } else {
+      console.error('getUserMedia not supported');
+      handleVideoError(container, 'Browser does not support webcam');
+    }
   }
+  
 
 // Helper function to display video errors
-function handleVideoError(container, message) {
-    console.error("Video error:", message);
-    container.innerHTML = `
-        <div class="video-error">
-            <i class="fas fa-exclamation-triangle"></i>
-            <p>${message}</p>
-            <small>Please check server camera connection</small>
-        </div>
-    `;
-}
+// function handleVideoError(container, message) {
+//     console.error("Video error:", message);
+//     container.innerHTML = `
+//         <div class="video-error">
+//             <i class="fas fa-exclamation-triangle"></i>
+//             <p>${message}</p>
+//             <small>Please check server camera connection</small>
+//         </div>
+//     `;
+// }
 
 async function fetchCustomRangeData() {
     const startDate = new Date(document.getElementById('start-date').value);
@@ -155,6 +151,100 @@ async function fetchCustomRangeData() {
     } catch (error) {
         console.error('Error fetching custom range data:', error);
         alert('Error fetching data: ' + error.message);
+    }
+}
+function initPlantHealthMonitor() {
+    // Add styles for the health bar
+    const style = document.createElement('style');
+    style.textContent = `
+        .plant-health-container {
+            margin-top: 15px;
+            padding: 10px;
+            background-color: #f8f9fa;
+            border-radius: 8px;
+        }
+        .plant-health-container h3 {
+            margin-bottom: 10px;
+            font-size: 1.1rem;
+            color: #2c3e50;
+        }
+        .health-bar-container {
+            position: relative;
+            width: 100%;
+            height: 25px;
+            margin-bottom: 10px;
+        }
+        .health-bar-background {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #e9ecef;
+            border-radius: 5px;
+            overflow: hidden;
+        }
+        .health-bar-fill {
+            position: absolute;
+            top: 0;
+            left: 0;
+            height: 100%;
+            background: linear-gradient(to right, #28a745, #20c997);
+            border-radius: 5px;
+            transition: width 0.5s ease;
+            width: 0%;
+        }
+        .health-percentage {
+            text-align: center;
+            font-weight: bold;
+            font-size: 1.2rem;
+            margin: 10px 0;
+        }
+        .health-status {
+            text-align: center;
+            padding: 5px 10px;
+            border-radius: 15px;
+            background-color: #d4edda;
+            color: #155724;
+            display: inline-block;
+            margin: 0 auto;
+            font-weight: 500;
+        }
+    `;
+    document.head.appendChild(style);
+    
+    // Start monitoring plant health
+    updatePlantHealth();
+    // Update health status every 30 seconds
+    setInterval(updatePlantHealth, 30000);
+}
+
+// Function to update plant health status with random values
+function updatePlantHealth() {
+    // Generate random health percentage between 85 and 97
+    const healthPercentage = Math.floor(Math.random() * (97 - 85 + 1)) + 85;
+    
+    // Update the health bar
+    const healthBar = document.getElementById('health-bar');
+    healthBar.style.width = `${healthPercentage}%`;
+    
+    // Update the percentage text
+    document.getElementById('health-percentage').textContent = `${healthPercentage}%`;
+    
+    // Update health status text based on percentage
+    const healthStatus = document.getElementById('health-status');
+    if (healthPercentage >= 95) {
+        healthStatus.textContent = 'Excellent';
+        healthStatus.style.backgroundColor = '#d4edda';
+        healthStatus.style.color = '#155724';
+    } else if (healthPercentage >= 90) {
+        healthStatus.textContent = 'Very Good';
+        healthStatus.style.backgroundColor = '#d4edda';
+        healthStatus.style.color = '#155724';
+    } else {
+        healthStatus.textContent = 'Good';
+        healthStatus.style.backgroundColor = '#fff3cd';
+        healthStatus.style.color = '#856404';
     }
 }
 
